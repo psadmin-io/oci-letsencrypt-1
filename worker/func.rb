@@ -127,19 +127,26 @@ end
 
 #create keys, and request cert from Let's Encrypt
 def exec_cert_bot(cert_config, existing_cert)
+  FDK.log(entry: "DEBUG: Starting exec_cert_bot for #{cert_config['cn_name']}")
 
   acc_private_key = get_lets_encrypt_acc_key(cert_config)
   if acc_private_key.nil?
+    FDK.log(entry: "DEBUG: Creating new LE account key")
     acc_private_key = OpenSSL::PKey::RSA.new(4096)
     add_lets_encrypt_acc_key(cert_config, acc_private_key)
+  else
+    FDK.log(entry: "DEBUG: Using existing LE account key")
   end
 
+  FDK.log(entry: "DEBUG: Creating ACME client with directory: #{LE_ENDPOINT_URI}")
   client = Acme::Client.new(private_key: acc_private_key, directory: LE_ENDPOINT_URI)
   account = client.new_account(contact: CERT_CONTACT, terms_of_service_agreed: true)
   account.kid
+  FDK.log(entry: "DEBUG: ACME account ready")
 
   identifiers = [cert_config['cn_name']] + cert_config['alt_names']
   challenges = []
+  FDK.log(entry: "DEBUG: Creating new order for identifiers: #{identifiers}")
   order = client.new_order(identifiers: identifiers)
   order.authorizations.each_with_index do |authorization, idx|
      challenge = authorization.dns
