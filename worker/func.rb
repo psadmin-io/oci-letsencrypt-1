@@ -266,8 +266,10 @@ def run_function(context:, input:)
 
   #if we already have a cert, we need to check the latest version and see if it needs renewing
   if !cert.nil?
-    latest_cert = cert_client.list_certificate_versions(cert.id, sort_order: 'DESC').data.items.first
-    if !(Time.now + (cert_config['renew_days_before_expiry']*86400) > latest_cert.validity.time_of_validity_not_after.to_time)
+    cert_versions = cert_client.list_certificate_versions(cert.id, sort_order: 'DESC').data.items
+    # Find the first version with valid validity (skip FAILED versions which have nil validity)
+    current_cert = cert_versions.find { |v| !v.validity.nil? }
+    if !current_cert.nil? && !(Time.now + (cert_config['renew_days_before_expiry']*86400) > current_cert.validity.time_of_validity_not_after.to_time)
       log_action(cert, "Certificate #{cert_config['cn_name']} does not need to be renewed")
       return "Nothing to do"
     end
