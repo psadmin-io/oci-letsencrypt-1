@@ -22,6 +22,12 @@ CERT_CONTACT = ENV['CERT_CONTACT']
 OCI_LOG_ID = ENV['OCI_LOG_OCID']
 VAULT_SECRET_NAME = ENV['VAULT_SECRET_NAME']
 
+# Helper to get cert name - uses cert_name if provided, else generates from cn_name
+def get_cert_name(cert_config)
+  return cert_config['cert_name'] if cert_config['cert_name'] && !cert_config['cert_name'].empty?
+  cert_config['cn_name'].start_with?('*.') ? "star-#{cert_config['cn_name'][2..-1]}" : cert_config['cn_name']
+end
+
 
 #returns the OCI principal signer, authn & authz of the function in the tenancy
 def get_signer
@@ -215,7 +221,7 @@ def add_cert(cert_config, server_cert, server_cert_chain, private_key)
   cert_client = OCI::CertificatesManagement::CertificatesManagementClient.new(signer: get_signer, region: cert_config['certificate_region'])
   cert = cert_client.create_certificate(
     OCI::CertificatesManagement::Models::CreateCertificateDetails.new(
-      name: cert_config['cn_name'].start_with?('*.') ? "wildcard-#{cert_config['cn_name'][2..-1]}" : cert_config['cn_name'],
+      name: get_cert_name(cert_config),
       description: "Let's Encrypt #{cert_config['cn_name']} certificate",
       compartment_id: cert_config['cert_compartment_ocid'],
       config_type: 'IMPORTED',
@@ -263,13 +269,10 @@ end
 def run_function(context:, input:)
   cert_config = input.merge({'vault_compartment_ocid' => get_vault(input).data.compartment_id})
 
-  if cert_config['cn_name'].start_with?('*.') && !cert_config['alt_names'].empty?
-    FDK.log(entry: "Certificate #{cert_config['cn_name']} can be only type wildcard or SAN")
-    return "Error: Certificate has both wildcard and SAN configured."
-  end
-
   cert_client = OCI::CertificatesManagement::CertificatesManagementClient.new(signer: get_signer, region: cert_config['certificate_region'])
-  cert = cert_client.list_certificates(name: cert_config['cn_name'].start_with?('*.') ? "wildcard-#{cert_config['cn_name'][2..-1]}" : cert_config['cn_name'], compartment_id: cert_config['cert_compartment_ocid']).data.items.first
+  cert_name = get_cert_name(cert_config)
+  FDK.log(entry: "DEBUG: Looking for cert named '#{cert_name}'")
+  cert = cert_client.list_certificates(name: cert_name, compartment_id: cert_config['cert_compartment_ocid']).data.items.first
 
   #if we already have a cert, we need to check the latest version and see if it needs renewing
   if !cert.nil?

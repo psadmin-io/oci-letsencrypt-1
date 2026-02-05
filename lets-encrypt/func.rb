@@ -28,6 +28,8 @@ VAULT_SECRET_NAME = ENV['VAULT_SECRET_NAME']
 VAULT_MASTER_KEY_ID = ENV['VAULT_MASTER_KEY_OCID']
 RENEW_DAYS_BEFORE_EXPIRY = ENV['RENEW_BEFORE_EXPIRY_DAYS'].to_i
 USE_CONFIG = ENV['USE_CONFIG'] == "TRUE"
+CERT_ALT_NAMES = ENV['CERT_ALT_NAMES'] ? JSON.parse(ENV['CERT_ALT_NAMES']) : []
+CERT_NAME = ENV['CERT_NAME'] || ''  # Optional: override default cert naming
 
 def get_cert_config
   #get the file from object storage
@@ -110,7 +112,8 @@ def run_function(context:, input:)
   else #we build the required JSON object to send
     single_cert = {
       "cn_name": CERT_CN_NAME,
-      "alt_names": [],
+      "alt_names": CERT_ALT_NAMES,
+      "cert_name": CERT_NAME,
       "dns_zone_name": DNS_ZONE_NAME,
       "dns_region": DNS_REGION,
       "certificate_region": DNS_REGION,

@@ -1,5 +1,8 @@
-source 'https://www.rubygems.org' do
-  gem 'oci'
-  gem 'fdk', '>= 0.0.38'
-  gem 'acme-client'
-end
+source 'https://rubygems.org'
+
+# Pin psych to version compatible with Ruby 2.7 bundled libyaml
+gem 'psych', '< 4.0'
+
+gem 'oci'
+gem 'fdk', '>= 0.0.38'
+gem 'acme-client'
